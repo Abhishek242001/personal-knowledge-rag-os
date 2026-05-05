@@ -11,6 +11,7 @@ Usage:
 
 import os
 import sys
+import time
 import argparse
 import hashlib
 from pathlib import Path
@@ -83,7 +84,22 @@ def ingest_pdf(pdf_path: Path, collection, embedder) -> int:
                 f"{pdf_path.name}:p{page_data['page']}:c{i}:{chunk[:50]}".encode()
             ).hexdigest()
 
-            embedding = embedder.embed(chunk)
+            # Retry logic for rate limits
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    embedding = embedder.embed(chunk)
+                    break
+                except Exception as e:
+                    if "RateLimitError" in type(e).__name__ or "rate" in str(e).lower():
+                        wait = 20 * (attempt + 1)
+                        print(f"   ⏳ Rate limited — waiting {wait}s (attempt {attempt+1}/{max_retries})...")
+                        time.sleep(wait)
+                    else:
+                        raise e
+            else:
+                print(f"   ❌ Skipping chunk after {max_retries} failed attempts")
+                continue
 
             collection.add(
                 ids=[chunk_id],
@@ -98,6 +114,9 @@ def ingest_pdf(pdf_path: Path, collection, embedder) -> int:
                 }]
             )
             total_chunks += 1
+
+            # Polite delay to avoid rate limits (Voyage free tier: 3 RPM)
+            time.sleep(0.5)
 
     print(f"   ✅ {len(pages)} pages → {total_chunks} chunks stored")
     return total_chunks

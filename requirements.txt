@@ -1,15 +1,16 @@
-# Core RAG pipeline
+# Vector store
 chromadb>=0.5.0
+
+# LLM
 anthropic>=0.40.0
-openai>=1.50.0
 
 # Document ingestion
-pypdf2>=3.0.0
 pymupdf>=1.24.0
 notion-client>=2.2.0
 markdown>=3.6
 
 # Embeddings
+openai>=1.50.0
 tiktoken>=0.7.0
 numpy>=1.26.0
 
@@ -20,7 +21,10 @@ requests>=2.31.0
 tqdm>=4.66.0
 rich>=13.7.0
 
-# Gmail (optional)
+# Gmail ingestion (optional)
 # google-auth>=2.28.0
 # google-auth-oauthlib>=1.2.0
 # google-api-python-client>=2.120.0
+
+# Voyage AI embeddings (optional)
+# voyageai>=0.3.0
