@@ -1,30 +1,32 @@
-# Vector store
-chromadb>=0.5.0
+# Personal Knowledge OS — Python Dependencies
+# Install: pip install -r requirements.txt
 
-# LLM
-anthropic>=0.40.0
+# ── Core ──────────────────────────────────────────────────────────────────────
+anthropic>=0.25.0          # Claude API — answer synthesis + image description
+chromadb>=0.4.0            # Local vector store
+python-dotenv>=1.0.0       # .env loading
+requests>=2.31.0           # HTTP calls (Telegram API, Ollama)
 
-# Document ingestion
-pymupdf>=1.24.0
+# ── Ingestion — PDF ───────────────────────────────────────────────────────────
+pymupdf>=1.23.0            # PDF text extraction (fitz)
+
+# ── Ingestion — Word / PowerPoint ─────────────────────────────────────────────
+python-docx>=1.1.0         # .docx extraction
+python-pptx>=0.6.23        # .pptx extraction
+
+# ── Ingestion — Excel / CSV ───────────────────────────────────────────────────
+pandas>=2.0.0              # Excel and CSV reading
+openpyxl>=3.1.0            # .xlsx backend for pandas
+xlrd>=2.0.1                # Legacy .xls support for pandas
+
+# ── Ingestion — Notion ────────────────────────────────────────────────────────
 notion-client>=2.2.0
-markdown>=3.6
 
-# Embeddings
-openai>=1.50.0
-tiktoken>=0.7.0
-numpy>=1.26.0
+# ── Ingestion — Gmail ─────────────────────────────────────────────────────────
+google-auth>=2.28.0
+google-auth-oauthlib>=1.2.0
+google-api-python-client>=2.120.0
 
-# Utilities
-python-dotenv>=1.0.0
-pyngrok>=8.0.0
-requests>=2.31.0
-tqdm>=4.66.0
-rich>=13.7.0
-
-# Gmail ingestion (optional)
-# google-auth>=2.28.0
-# google-auth-oauthlib>=1.2.0
-# google-api-python-client>=2.120.0
-
-# Voyage AI embeddings (optional)
-# voyageai>=0.3.0
+# ── Embeddings (choose one — see .env.example) ────────────────────────────────
+# voyageai>=0.2.3           # Voyage AI (recommended — free 200M tokens)
+# openai>=1.12.0            # OpenAI alternative

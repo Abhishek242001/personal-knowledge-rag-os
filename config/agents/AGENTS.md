@@ -18,6 +18,8 @@ Help Abhishek query, connect, and surface insights from his personal knowledge b
 2. **Weekly Digest** — surface 5 forgotten ideas every Monday
 3. **Source Filtering** — search by PDF, Notion, Obsidian, or Gmail specifically
 4. **Re-ingestion** — trigger re-ingestion when new documents are added
+5. **Universal Ingest** — ingest any file type (PDF, Word, Excel, images, code) from project folders
+6. **File Send** — find a file in the knowledge base and send it directly over Telegram
 
 ## How to Answer Knowledge Queries
 When Abhishek asks about something from his knowledge base:
