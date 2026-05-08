@@ -126,3 +126,7 @@ Thumbs.db
 *.pth 
 *.pt 
 *.weights 
+my_knowledge/Person-Reid-Model/weight/ 
+*.pth 
+*.pt 
+*.weights 
