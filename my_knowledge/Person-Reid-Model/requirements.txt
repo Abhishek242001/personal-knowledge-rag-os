@@ -1,0 +1,127 @@
+# ============================================================================
+# Enhanced Multi-Camera Person ReID System v2.0 - Requirements
+# ============================================================================
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# For GPU support, ensure CUDA is installed and use:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#
+# ============================================================================
+
+# ============================================================================
+# CORE DEPENDENCIES
+# ============================================================================
+
+# Deep Learning Framework
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Computer Vision
+opencv-python>=4.8.0
+ultralytics>=8.0.0          # YOLO11-Pose
+
+# Numerical Computing
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Machine Learning
+scikit-learn>=1.3.0         # DBSCAN for spatial clustering
+
+# ============================================================================
+# REID MODELS
+# ============================================================================
+
+# OSNet dependencies (included in torch/torchvision)
+# Note: OSNet weights need to be downloaded separately
+
+# ============================================================================
+# UTILITIES
+# ============================================================================
+
+# Logging and Progress
+tqdm>=4.65.0
+coloredlogs>=15.0           # Optional: colored logging
+
+# File I/O
+Pillow>=10.0.0
+h5py>=3.9.0                 # Optional: for advanced data storage
+
+# ============================================================================
+# OPTIONAL DEPENDENCIES
+# ============================================================================
+
+# Performance Monitoring
+psutil>=5.9.0               # Optional: system monitoring
+py-cpuinfo>=9.0.0          # Optional: CPU info
+
+# Visualization
+matplotlib>=3.7.0           # Optional: plotting
+seaborn>=0.12.0            # Optional: advanced plotting
+
+# Testing (for development)
+pytest>=7.4.0              # Optional: testing framework
+pytest-cov>=4.1.0          # Optional: test coverage
+
+# ============================================================================
+# VERSION COMPATIBILITY NOTES
+# ============================================================================
+#
+# Python: Requires Python 3.8+
+# CUDA: Recommended CUDA 11.8+ for GPU acceleration
+# GPU: NVIDIA GPU with 4GB+ VRAM recommended
+#
+# Tested Configurations:
+# - Python 3.10 + PyTorch 2.1.0 + CUDA 11.8 ✅
+# - Python 3.11 + PyTorch 2.0.1 + CUDA 11.7 ✅
+# - Python 3.8 + PyTorch 2.0.0 + CPU only ✅
+#
+# ============================================================================
+
+# ============================================================================
+# INSTALLATION INSTRUCTIONS
+# ============================================================================
+#
+# Basic Installation (CPU):
+#   pip install -r requirements.txt
+#
+# GPU Installation (CUDA 11.8):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#   pip install -r requirements.txt
+#
+# Development Installation (includes testing):
+#   pip install -r requirements.txt
+#   pip install pytest pytest-cov
+#
+# ============================================================================
+
+# ============================================================================
+# MODEL WEIGHTS DOWNLOAD
+# ============================================================================
+#
+# YOLO11-Pose:
+#   Automatically downloaded on first run by ultralytics
+#   Or manually: wget https://github.com/ultralytics/assets/releases/download/v0.0.0/yolo11n-pose.pt
+#
+# OSNet:
+#   Download from: https://kaiyangzhou.github.io/deep-person-reid/MODEL_ZOO
+#   Place in project root or specify path in config.py
+#   Recommended: osnet_x1_0_imagenet.pth
+#
+# ============================================================================
+
+# ============================================================================
+# KNOWN ISSUES
+# ============================================================================
+#
+# 1. On MacOS with M1/M2: Use PyTorch MPS backend
+#    torch>=2.0.0 has native MPS support
+#
+# 2. On Windows: May need Visual Studio Build Tools
+#    Download from: https://visualstudio.microsoft.com/downloads/
+#
+# 3. scikit-learn: May need scipy to be installed first
+#    pip install scipy before pip install scikit-learn
+#
+# ============================================================================

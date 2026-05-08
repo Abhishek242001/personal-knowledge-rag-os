@@ -1,0 +1,46 @@
+{
+  "frame_count": 144,
+  "timestamp": 1767532516.0554972,
+  "camera_id": "cam1",
+  "fps": 21.12,
+  "total_people_detected": 2,
+  "detections": [
+    {
+      "person_id": 1,
+      "bbox": [
+        845.6322021484375,
+        116.417724609375,
+        1108.87158203125,
+        688.9581298828125
+      ],
+      "confidence": 0.89,
+      "similarity": 0.984,
+      "position": {
+        "x": 977.3,
+        "y": 402.7
+      },
+      "has_keypoints": true
+    },
+    {
+      "person_id": 2,
+      "bbox": [
+        498.88018798828125,
+        202.36550903320312,
+        965.3524169921875,
+        860.2582397460938
+      ],
+      "confidence": 0.718,
+      "similarity": 0.855,
+      "position": {
+        "x": 732.1,
+        "y": 531.3
+      },
+      "has_keypoints": true
+    }
+  ],
+  "_metadata": {
+    "frame_number": 144,
+    "timestamp": "2026-01-04T18:45:16.089107",
+    "written_at": "2026-01-04 18:45:16"
+  }
+}

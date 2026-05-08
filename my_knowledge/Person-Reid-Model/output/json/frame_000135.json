@@ -1,0 +1,30 @@
+{
+  "frame_count": 135,
+  "timestamp": 1767532515.599383,
+  "camera_id": "cam1",
+  "fps": 20.91,
+  "total_people_detected": 1,
+  "detections": [
+    {
+      "person_id": 1,
+      "bbox": [
+        835.5708618164062,
+        116.5191879272461,
+        1117.7177734375,
+        688.0352783203125
+      ],
+      "confidence": 0.901,
+      "similarity": 0.905,
+      "position": {
+        "x": 976.6,
+        "y": 402.3
+      },
+      "has_keypoints": true
+    }
+  ],
+  "_metadata": {
+    "frame_number": 135,
+    "timestamp": "2026-01-04T18:45:15.624382",
+    "written_at": "2026-01-04 18:45:15"
+  }
+}
