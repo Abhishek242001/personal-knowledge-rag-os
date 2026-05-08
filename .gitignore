@@ -122,4 +122,7 @@ Thumbs.db
 *.code-workspace
 .spyderproject
 .spyproject
-.ropeproject
+.ropeprojectmy_knowledge/Person-Reid-Model/weight/ 
+*.pth 
+*.pt 
+*.weights 
