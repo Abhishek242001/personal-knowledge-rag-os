@@ -93,12 +93,17 @@ class OllamaEmbedder:
         for max_len in [4000, 2000, 500]:
             try:
                 response = self.requests.post(
-                    f"{self.base_url}/api/embeddings",
-                    json={"model": self.model, "prompt": text[:max_len]},
+                    f"{self.base_url}/api/embed",
+                    json={"model": self.model, "input": text[:max_len]},
                     timeout=60
                 )
                 response.raise_for_status()
-                return response.json()["embedding"]
+                data = response.json()
+                # Newer Ollama returns "embeddings" (list of lists)
+                embeddings = data.get("embeddings") or data.get("embedding")
+                if isinstance(embeddings, list) and len(embeddings) > 0:
+                    return embeddings[0] if isinstance(embeddings[0], list) else embeddings
+                raise RuntimeError(f"Unexpected Ollama response: {data}")
             except self.requests.exceptions.HTTPError as e:
                 if response.status_code == 500 and max_len > 500:
                     print(f"   ⚠️  Retrying with shorter text ({max_len} → {max_len // 2} chars)...")
