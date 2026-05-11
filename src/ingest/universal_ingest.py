@@ -384,13 +384,27 @@ def ingest_directory(knowledge_dir: Path, project_filter: str = None,
         scan_root = knowledge_dir
         print(f"📁 Scanning: {knowledge_dir}")
 
-    # Collect files
+    # Collect files — skip internal tool dirs but allow project subfolders
+    # Key rule: skip if .git or __pycache__ etc appear as a path component
+    # BUT only skip the contents of those dirs, not sibling files
+    GIT_SKIP = {".git", "__pycache__", "node_modules", ".obsidian",
+                "output", "weight", "chromadb", "logs"}
+
     all_files = []
     for f in scan_root.rglob("*"):
         if not f.is_file():
             continue
-        if any(skip in f.parts for skip in SKIP_DIRS):
+
+        # Get path relative to scan root and check each component
+        try:
+            rel = f.relative_to(scan_root)
+        except ValueError:
             continue
+
+        # Skip if any part of the relative path is a skip dir
+        if any(part in GIT_SKIP for part in rel.parts):
+            continue
+
         if f.name in SKIP_FILES:
             continue
         if f.suffix.lower() in ALL_SUPPORTED:

@@ -1,23 +1,6 @@
 """
 Telegram File Sender
-=====================
-Searches the knowledge base for a file matching the user's request
-and sends it directly over Telegram.
-
-Flow:
-    1. User asks: "Send me the Project Proposal from Reid project"
-    2. RAG search finds matching chunk with file_path in metadata
-    3. Bot calls Telegram sendDocument with that absolute path
-    4. File delivered to user in Telegram
-
-Usage (standalone CLI test):
-    python src/telegram/file_sender.py "Project Proposal" --chat-id YOUR_CHAT_ID
-
-Usage (from rag_query.py):
-    from telegram.file_sender import find_and_send_file
-    result = find_and_send_file(question, chat_id)
 """
-
 import os
 import sys
 import requests
@@ -31,41 +14,26 @@ sys.path.append(str(Path(__file__).parent.parent))
 from embed.embedder import get_embedder
 from rag.chromadb_store import get_collection
 
-MAX_FILE_SIZE    = 25 * 1024 * 1024   # 25 MB Telegram bot limit
-SEARCH_TOP_K     = 10                  # how many chunks to scan for file candidates
-RELEVANCE_CUTOFF = 0.25               # minimum similarity score (0-1, higher = stricter)
-
+MAX_FILE_SIZE = 25 * 1024 * 1024
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
 
-# ── Telegram API helpers ──────────────────────────────────────────────────────
-
 def send_message(chat_id: str, text: str) -> bool:
-    """Send a plain text message to a Telegram chat."""
     if not BOT_TOKEN:
-        print("❌ TELEGRAM_BOT_TOKEN not set")
         return False
-    url  = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     resp = requests.post(url, json={"chat_id": chat_id, "text": text}, timeout=15)
     return resp.ok
 
 
 def send_document(chat_id: str, file_path: Path, caption: str = "") -> dict:
-    """
-    Upload and send a file to a Telegram chat.
-    Returns {"ok": bool, "error": str or None}
-    """
     if not BOT_TOKEN:
         return {"ok": False, "error": "TELEGRAM_BOT_TOKEN not set"}
-
     if not file_path.exists():
-        return {"ok": False, "error": f"File not found on server: {file_path}"}
-
+        return {"ok": False, "error": f"File not found: {file_path}"}
     size = file_path.stat().st_size
     if size > MAX_FILE_SIZE:
-        mb = size / (1024 * 1024)
-        return {"ok": False, "error": f"File too large ({mb:.1f} MB). Telegram limit is 25 MB."}
-
+        return {"ok": False, "error": f"File too large ({size/(1024*1024):.1f} MB). Limit is 25 MB."}
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
     try:
         with open(file_path, "rb") as f:
@@ -75,174 +43,127 @@ def send_document(chat_id: str, file_path: Path, caption: str = "") -> dict:
                 files={"document": (file_path.name, f)},
                 timeout=60,
             )
-        if resp.ok:
-            return {"ok": True, "error": None}
-        else:
-            return {"ok": False, "error": resp.json().get("description", "Unknown Telegram error")}
+        return {"ok": resp.ok, "error": None if resp.ok else resp.json().get("description")}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
 
-# ── File search logic ─────────────────────────────────────────────────────────
-
-def is_file_request(question: str) -> bool:
-    """
-    Detect if the user is asking to receive/send a file,
-    not just asking a knowledge question.
-    """
-    triggers = [
-        "send me", "share", "send the", "get me", "fetch",
-        "download", "give me the file", "send file",
-        "forward me", "attach", "send document",
-    ]
-    q_lower = question.lower()
-    return any(t in q_lower for t in triggers)
+def clean_query(query: str) -> str:
+    """Remove action words to get just the file description."""
+    q = query.lower()
+    for word in ["send me the", "send me", "share the", "share", "get me the",
+                 "get me", "fetch the", "fetch", "forward me the", "forward me",
+                 "attach the", "attach", "send the", "send", "give me the", "give me"]:
+        q = q.replace(word, "").strip()
+    return q.strip() or query
 
 
-def search_files(query: str, project_filter: str = None,
-                 file_type_filter: str = None) -> list[dict]:
-    """
-    Search ChromaDB for file chunks matching the query.
-    Returns list of unique file candidates sorted by best relevance.
-    """
-    embedder   = get_embedder()
+def find_file_by_name(query: str, project_filter: str = None) -> list[dict]:
+    """Search by filename keyword match directly in metadata."""
     collection = get_collection()
+    results = collection.get(include=["metadatas"])
 
-    query_embedding = embedder.embed(query)
+    q = clean_query(query).lower()
+    query_words = [w for w in q.split() if len(w) > 2]
 
-    # Build where filter
-    where = {"source": "universal"}
-    if project_filter:
-        where = {"$and": [{"source": "universal"}, {"project_name": project_filter}]}
-    if file_type_filter:
-        where = {"$and": [{"source": "universal"}, {"file_type": file_type_filter}]}
+    seen = {}
+    for meta in results["metadatas"]:
+        filename = meta.get("filename", "").lower()
+        fp = meta.get("file_path", "")
+        if not fp:
+            continue
+        if project_filter and project_filter.lower() not in meta.get("project_name", "").lower():
+            continue
+        score = sum(1 for w in query_words if w in filename)
+        if score > 0 and fp not in seen:
+            seen[fp] = {
+                "file_path":    fp,
+                "filename":     meta.get("filename", "?"),
+                "project_name": meta.get("project_name", "root"),
+                "file_type":    meta.get("file_type", "?"),
+                "rel_path":     meta.get("rel_path", ""),
+                "relevance":    score,
+            }
 
-    try:
-        results = collection.query(
-            query_embeddings=[query_embedding],
-            n_results=SEARCH_TOP_K,
-            where=where,
-            include=["documents", "metadatas", "distances"],
-        )
-    except Exception as e:
-        print(f"Search error: {e}")
-        return []
+    return sorted(seen.values(), key=lambda x: x["relevance"], reverse=True)
 
-    # De-duplicate by file_path, keeping best (lowest distance) per file
-    seen      = {}
-    for doc, meta, dist in zip(
-        results["documents"][0],
-        results["metadatas"][0],
-        results["distances"][0],
-    ):
+
+def find_file_by_semantic(query: str, project_filter: str = None) -> list[dict]:
+    """Semantic search fallback."""
+    embedder = get_embedder()
+    collection = get_collection()
+    q = clean_query(query)
+    embedding = embedder.embed(q)
+
+    results = collection.query(
+        query_embeddings=[embedding],
+        n_results=10,
+        include=["metadatas", "distances"],
+    )
+
+    seen = {}
+    for meta, dist in zip(results["metadatas"][0], results["distances"][0]):
         relevance = round(1 - dist, 3)
-        if relevance < RELEVANCE_CUTOFF:
+        if relevance < 0.10:
             continue
         fp = meta.get("file_path", "")
         if not fp:
             continue
+        if project_filter and project_filter.lower() not in meta.get("project_name", "").lower():
+            continue
         if fp not in seen or relevance > seen[fp]["relevance"]:
             seen[fp] = {
                 "file_path":    fp,
-                "filename":     meta.get("filename", Path(fp).name),
+                "filename":     meta.get("filename", "?"),
                 "project_name": meta.get("project_name", "root"),
-                "file_type":    meta.get("file_type", "unknown"),
+                "file_type":    meta.get("file_type", "?"),
                 "rel_path":     meta.get("rel_path", ""),
                 "relevance":    relevance,
-                "snippet":      doc[:200],
             }
 
-    # Sort by relevance descending
     return sorted(seen.values(), key=lambda x: x["relevance"], reverse=True)
 
 
-def find_and_send_file(question: str, chat_id: str,
-                       project_filter: str = None) -> str:
-    """
-    Main entry point. Finds the best matching file and sends it over Telegram.
-    Returns a status message string (for the bot to relay back if needed).
-    """
+def find_and_send_file(question: str, chat_id: str, project_filter: str = None) -> str:
     print(f"\n📎 File send request: {question}")
 
-    candidates = search_files(question, project_filter=project_filter)
+    # Try filename match first
+    candidates = find_file_by_name(question, project_filter)
+    print(f"   Filename matches: {len(candidates)}")
+
+    # Fall back to semantic search
+    if not candidates:
+        candidates = find_file_by_semantic(question, project_filter)
+        print(f"   Semantic matches: {len(candidates)}")
 
     if not candidates:
-        msg = (
-            "❌ No matching file found in your knowledge base.\n\n"
-            "Make sure:\n"
-            "• The file has been ingested (run universal_ingest.py)\n"
-            "• Your description matches the file name or content"
-        )
+        msg = "❌ No matching file found.\nMake sure the file has been ingested."
         send_message(chat_id, msg)
         return msg
 
-    # Take the best match
     best = candidates[0]
     file_path = Path(best["file_path"])
+    print(f"   Sending: {best['filename']} (score: {best['relevance']})")
 
-    print(f"   Best match: {best['filename']} (relevance: {best['relevance']})")
-
-    # If multiple strong candidates, list them
-    strong = [c for c in candidates if c["relevance"] >= 0.55]
-    if len(strong) > 1:
-        # More than one strong match — ask user to clarify
-        listing = "\n".join([
-            f"  {i+1}. {c['filename']} [{c['project_name']}] (match: {c['relevance']})"
-            for i, c in enumerate(strong[:5])
-        ])
-        msg = (
-            f"📁 Found {len(strong)} possible files. Sending the best match:\n\n"
-            f"{listing}\n\n"
-            f"➡️  Sending: {best['filename']}"
-        )
-        send_message(chat_id, msg)
-
-    # Build caption
-    caption = (
-        f"📄 {best['filename']}\n"
-        f"📁 Project: {best['project_name']}\n"
-        f"🔍 Match score: {best['relevance']}"
-    )
-
-    # Send the file
+    caption = f"📄 {best['filename']}\n📁 Project: {best['project_name']}"
     result = send_document(chat_id, file_path, caption=caption)
 
     if result["ok"]:
-        status = f"✅ Sent: {best['filename']}"
-        print(f"   {status}")
-        return status
+        return f"✅ Sent: {best['filename']}"
     else:
-        err_msg = (
-            f"❌ Could not send {best['filename']}\n"
-            f"Reason: {result['error']}\n\n"
-            f"File location on server:\n{file_path}"
-        )
-        send_message(chat_id, err_msg)
-        print(f"   ❌ Send failed: {result['error']}")
-        return err_msg
+        err = f"❌ Could not send {best['filename']}\nReason: {result['error']}"
+        send_message(chat_id, err)
+        return err
 
 
 def list_files_in_project(project_name: str, chat_id: str = None) -> str:
-    """
-    List all ingested files in a project.
-    Optionally sends the list to Telegram.
-    """
     collection = get_collection()
+    results = collection.get(include=["metadatas"])
 
-    try:
-        results = collection.get(
-            where={"$and": [{"source": "universal"}, {"project_name": project_name}]},
-            include=["metadatas"],
-        )
-    except Exception as e:
-        return f"Error fetching project files: {e}"
-
-    if not results["metadatas"]:
-        return f"No files found for project: {project_name}"
-
-    # Unique files only
-    seen  = {}
+    seen = {}
     for meta in results["metadatas"]:
+        if project_name.lower() not in meta.get("project_name", "").lower():
+            continue
         fp = meta.get("file_path", "")
         if fp and fp not in seen:
             seen[fp] = {
@@ -251,33 +172,28 @@ def list_files_in_project(project_name: str, chat_id: str = None) -> str:
                 "size_kb":   meta.get("file_size_kb", "?"),
             }
 
+    if not seen:
+        return f"No files found for project: {project_name}"
+
     lines = [f"📁 Files in project: {project_name}\n"]
     for info in sorted(seen.values(), key=lambda x: x["filename"]):
-        lines.append(
-            f"  • {info['filename']}  [{info['file_type']}]  ({info['size_kb']} KB)"
-        )
+        lines.append(f"  • {info['filename']}  [{info['file_type']}]  ({info['size_kb']} KB)")
 
     msg = "\n".join(lines)
-
     if chat_id:
         send_message(chat_id, msg)
-
     return msg
 
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Search and send files over Telegram")
-    parser.add_argument("query",      help="What file to look for")
-    parser.add_argument("--chat-id",  required=True, help="Telegram chat ID to send file to")
-    parser.add_argument("--project",  help="Filter search to a specific project")
-    parser.add_argument("--list",     action="store_true",
-                        help="List all files in the project instead of searching")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("query",     help="What file to look for")
+    parser.add_argument("--chat-id", required=True)
+    parser.add_argument("--project", help="Filter to specific project")
+    parser.add_argument("--list",    action="store_true")
     args = parser.parse_args()
 
     if args.list and args.project:
         print(list_files_in_project(args.project, chat_id=args.chat_id))
     else:
-        result = find_and_send_file(args.query, args.chat_id, project_filter=args.project)
-        print(result)
+        print(find_and_send_file(args.query, args.chat_id, project_filter=args.project))
